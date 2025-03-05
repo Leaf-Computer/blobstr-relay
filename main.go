@@ -36,7 +36,7 @@ func main() {
 	configureBlossomRules(bl, db)
 
 	// Run the server
-	serverAddress := getEnv("SERVER_ADDRESS", "0.0.0.0:3334")
+	serverAddress := getEnv("SERVER_ADDRESS", "localhost:3334")
 	fmt.Printf("Running on %s\n", serverAddress)
 	if err := http.ListenAndServe(serverAddress, relay); err != nil {
 		panic(err)
@@ -80,7 +80,7 @@ func configureRelayEventHandling(relay *khatru.Relay, db *badger.BadgerBackend) 
 }
 
 func setupBlossom(relay *khatru.Relay, db *badger.BadgerBackend) *blossom.BlossomServer {
-	bl := blossom.New(relay, "http://0.0.0.0:3334")
+	bl := blossom.New(relay, getEnv("SERVER_ADDRESS", "localhost:3334"))
 	bl.Store = blossom.EventStoreBlobIndexWrapper{Store: db, ServiceURL: bl.ServiceURL}
 	return bl
 }
