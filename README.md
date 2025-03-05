@@ -41,65 +41,67 @@ For the following example, we will use the following tools:
 - [blossom-cli](https://git.fiatjaf.com/blossom), with a custom patch to support authentication on download requests (not yet merged)
 - [jq](https://jqlang.org)
 
+**Note:** There are currently no dedicated CLIs or Nostr clients (that I know of) for this specific use case. If you have a CLI/client that supports this use case (or if you are building one), please let me know!
+
 We are also assuming that the server is configured on `localhost:3334`
 
-### 1. Generate two nostr private keys
+1. Generate two nostr private keys
 
 ```sh
 KEY_1=$(nak key generate)
 KEY_2=$(nak key generate)
 ```
 
-### 2. Save their public keys
+2. Save their public keys
 
 ```sh
 PUBKEY_1=$(nak key public $KEY_1)
 PUBKEY_2=$(nak key public $KEY_2)
 ```
 
-### 3. Add user 1 to the `ALLOWED_USERS` in the `.env` file
+3. Add user 1 to the `ALLOWED_USERS` in the `.env` file
 
 ```sh
 echo "ALLOWED_USERS=$PUBKEY_1" >> .env
 ```
 
-### 4. Start the server
+4. Start the server
 
 ```sh
 go run main.go
 ```
 
-### 5. Upload a file using `KEY_2` (will fail)
+5. Upload a file using `KEY_2` (will fail)
 
 ```sh
 blossom upload --sec=$KEY_2 --server http://localhost:3334 ~/Downloads/icon.png
 ```
 
-### 6. Upload a file using `KEY_1` (will succeed)
+6. Upload a file using `KEY_1` (will succeed)
 
 ```sh
 blossom upload --sec=$KEY_1 --server http://localhost:3334 ~/Downloads/icon.png
 ```
 
-This returns:
+This returns a confirmation such as:
 
 ```json
 {"url":"http://localhost:3334/9e0db9b76dddf8cd69c9778993da62e5975634d38583a2ac87536488bd4e82fe.png","sha256":"9e0db9b76dddf8cd69c9778993da62e5975634d38583a2ac87536488bd4e82fe","size":2534522,"type":"image/png","uploaded":1741135365}
 ```
 
-### 7. Try to download the file using `KEY_2` (will fail with code 403)
+7. Try to download the file using `KEY_2` (will fail with code 403)
 
 ```sh
 blossom download --sec=$KEY_2 --server http://localhost:3334 9e0db9b76dddf8cd69c9778993da62e5975634d38583a2ac87536488bd4e82fe > ~/Downloads/download.png
 ```
 
-This returns:
+This returns an error such as:
 
 ```
 9e0db9b76dddf8cd69c9778993da62e5975634d38583a2ac87536488bd4e82fe is not present in http://localhost:3334: 403
 ```
 
-### 8. Share the file with `KEY_2` using a NIP-94 event signed by `KEY_1`
+8. Share the file with `KEY_2` using a NIP-94 event signed by `KEY_1`
 
 ```sh
 nak event --kind 1063 --tag x=9e0db9b76dddf8cd69c9778993da62e5975634d38583a2ac87536488bd4e82fe --tag p=$PUBKEY_2 --sec $KEY_1 ws://localhost:3334
@@ -107,19 +109,19 @@ nak event --kind 1063 --tag x=9e0db9b76dddf8cd69c9778993da62e5975634d38583a2ac87
 
 _Note:_ The event above is not fully NIP-94 as it is missing some required fields. This is just a simplified example that works with the current implementation.
 
-### 9. List files shared with `KEY_2`
+9. List files shared with `KEY_2`
 
 ```sh
 nak req --kind=1063 --tag p=$PUBKEY_2 http://localhost:3334 | jq '.tags[] | select(.[0] == "x") | .[1]'
 ```
 
-This will return:
+This returns the hashes of the files shared with `KEY_2`. Example:
 
 ```json
 "9e0db9b76dddf8cd69c9778993da62e5975634d38583a2ac87536488bd4e82fe"
 ```
 
-### 7. Try to download the file using `KEY_2` again
+10. Try to download the file using `KEY_2` again
 
 ```sh
 blossom download --sec=$KEY_2 --server http://localhost:3334 9e0db9b76dddf8cd69c9778993da62e5975634d38583a2ac87536488bd4e82fe > ~/Downloads/download.png
